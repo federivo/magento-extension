@@ -145,4 +145,30 @@
             <argument name="logger" xsi:type="object">ExtendLogger</argument>
         </arguments>
     </type>
+
+    <virtualType name="ExtendDebugLogHandler" type="Magento\Framework\Logger\Handler\Base">
+        <arguments>
+            <argument name="fileName" xsi:type="string">/var/log/extend_debug.log</argument>
+        </arguments>
+    </virtualType>
+
+    <virtualType name="ExtendDebugLogger" type="Magento\Framework\Logger\Monolog">
+        <arguments>
+            <argument name="handlers" xsi:type="array">
+                <item name="debug" xsi:type="object">ExtendDebugLogHandler</item>
+            </argument>
+        </arguments>
+    </virtualType>
+
+    <type name="Magento\ConfigurableProduct\Model\Quote\Item\CartItemProcessor">
+        <plugin name="ExtendWarrantyCartItemProcessorPlugin"
+                type="Extend\Warranty\Plugin\ConfigurableProduct\Model\Quote\Item\CartItemProcessorPlugin"
+                sortOrder="10"
+        />
+    </type>
+    <type name="Extend\Warranty\Plugin\ConfigurableProduct\Model\Quote\Item\CartItemProcessorPlugin">
+        <arguments>
+            <argument name="logger" xsi:type="object">ExtendDebugLogger</argument>
+        </arguments>
+    </type>
 </config>

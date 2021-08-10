@@ -28,7 +28,7 @@
 
     <type name="Extend\Warranty\Observer\QuoteRemoveItem">
         <arguments>
-            <argument name="logger" xsi:type="object">ExtendLogger</argument>
+            <argument name="logger" xsi:type="object">ExtendDebugLogger</argument>
         </arguments>
     </type>
 </config>

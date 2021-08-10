@@ -10,6 +10,9 @@
 namespace Extend\Warranty\Observer;
 
 use Extend\Warranty\Helper\Tracking;
+use Magento\Framework\Debug;
+use Magento\Framework\Exception\LocalizedException;
+use Magento\Quote\Api\Data\CartItemInterface;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -89,17 +92,28 @@ class QuoteRemoveItem implements \Magento\Framework\Event\ObserverInterface
         $items = $quote->getAllItems();
         $visibleItems = $quote->getAllVisibleItems();
 
+        $this->logger->debug('--- QUOTE REMOVE ITEM OBSERVER START ---');
+
         $debugQuoteData = 'Quote ID: ' . $quote->getId()
             . '. Items Count: ' . count($items)
             . '. Visible Items Count: ' . count($visibleItems);
-        $this->logger->info($debugQuoteData);
-        $this->logger->info('Removed Item ID: ' .  $quoteItem->getId() . '. Product SKU: ' . $quoteItem->getSku());
+        $this->logger->debug($debugQuoteData);
+        $this->logger->debug('--- REMOVED ITEM START ---');
+        $this->logger->debug('Removed Item ID: ' .  $quoteItem->getId() . '. Product SKU: ' . $quoteItem->getSku());
+        $this->addLogging($quoteItem);
+        $this->logger->debug('--- REMOVED ITEM END ---');
 
         foreach ($items as $item) {
-            $this->logger->info('Item ID: ' .  $item->getId() . '. Product SKU: ' . $item->getSku() . '. Product Name: ' . $item->getName());
+            $this->logger->debug('Item ID: ' .  $item->getId() . '. Product SKU: ' . $item->getSku() . '. Product Name: ' . $item->getName());
+            if (!$item->getId()) {
+                $this->logger->debug('--- ITEM START ---');
+                $this->addLogging($item);
+                $this->logger->debug('--- ITEM END ---');
+            }
+
             if ($item->getSku() === $quoteItem->getSku()) {
                 $removeWarranty = false;
-                $this->logger->info('Warranty for ' . $quoteItem->getSku() . ' shouldn\'t be removed.');
+                $this->logger->debug('Warranty for ' . $quoteItem->getSku() . ' shouldn\'t be removed.');
                 break;
             }
         }
@@ -107,7 +121,49 @@ class QuoteRemoveItem implements \Magento\Framework\Event\ObserverInterface
         if ($warrantyItem && $removeWarranty) {
             $warrantyItemId = $warrantyItem->getItemId();
             $quote->removeItem($warrantyItem->getItemId());
-            $this->logger->info('Warranty ' . $warrantyItemId . ' has been removed.');
+            $this->logger->debug('Warranty ' . $warrantyItemId . ' has been removed.');
+        }
+
+        $this->logger->debug('--- QUOTE REMOVE ITEM OBSERVER END ---');
+    }
+
+    /**
+     * Add logging
+     *
+     * @param CartItemInterface $quoteItem
+     */
+    private function addLogging(CartItemInterface $quoteItem): void
+    {
+        try {
+            $hasError = false;
+            $this->logger->debug('CART ITEM: ' . $quoteItem->convertToJson());
+            $product = $quoteItem->getProduct();
+            if ($product) {
+                $this->logger->debug('PRODUCT: ' . $product->convertToJson());
+                $customOptions = $product->getCustomOptions();
+                if (!empty($customOptions)) {
+                    foreach ($customOptions as $code => $customOption) {
+                        try {
+                            $this->logger->debug('OPTION CODE: ' . $code . ' - OPTION VALUE: ' . $customOption->getValue());
+                        } catch (LocalizedException $exception) {
+                            $this->logger->error('Custom option is null.');
+                            $this->logger->error($exception->getMessage(), ['trace' => $exception->getTraceAsString()]);
+                        }
+                    }
+                } else {
+                    $hasError = true;
+                    $this->logger->error('Product custom options is empty.');
+                }
+            } else {
+                $hasError = true;
+                $this->logger->error('Product is empty.');
+            }
+
+            if ($hasError) {
+                $this->logger->debug(Debug::backtrace(true));
+            }
+        } catch (LocalizedException $exception) {
+            $this->logger->error($exception->getMessage(), ['trace' => $exception->getTraceAsString()]);
         }
     }
 }
